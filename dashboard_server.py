@@ -48,6 +48,7 @@ from core.engine_proto import gerar_resultado  # noqa: E402
 from core.run_web import run_full_analysis_json  # noqa: E402
 from data.busca_web_fornecedores import (  # noqa: E402
     busca_web_configurada,
+    diagnostico_busca,
     executar_busca_fornecedores,
 )
 from data.fornecedor_canais import canais_para_api, normalizar_canal, rotulo_canal  # noqa: E402
@@ -353,6 +354,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     "busca_web_ativa": busca_web_configurada(),
                 },
             )
+
+        if path == "/api/diagnostico-busca":
+            return _json_response(self, diagnostico_busca(), 200)
 
         if path == "/api/busca-fornecedores":
             # Não exige ARBILOCAL_API_KEY: o painel usa GET mesmo host; rate limit + chave Serper no servidor bastam.

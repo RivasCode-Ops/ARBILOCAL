@@ -1,13 +1,10 @@
 const $ = (s, el = document) => el.querySelector(s);
 const API_KEY_STORAGE = "arbilocal_api_key";
 
-/** Resolve /api/... em relação à pasta da página (evita 404 se não estiver na raiz do host). */
+/** Sempre usa a raiz do host (ex.: http://127.0.0.1:8765/api/...), evitando 404 por pasta errada. */
 function apiUrl(endpointPath) {
-  const trimmed = String(endpointPath).replace(/^\/+/, "");
-  const { origin, pathname } = window.location;
-  const dir = pathname.endsWith("/") ? pathname : pathname.replace(/\/[^/]*$/, "/");
-  const base = origin + (dir === "" ? "/" : dir);
-  return new URL(trimmed, base).href;
+  const p = String(endpointPath).replace(/^\/+/, "");
+  return `${window.location.origin}/${p}`;
 }
 
 function extraHeaders() {
@@ -344,6 +341,13 @@ if (btnBuscaWeb) {
       meta.className = "hint";
       meta.textContent = `Fonte: ${data.fonte || "?"} · Consulta: ${data.query || ""}`;
       out.appendChild(meta);
+      if (data.aviso) {
+        const w = document.createElement("p");
+        w.className = "hint";
+        w.style.color = "var(--warn)";
+        w.textContent = data.aviso;
+        out.appendChild(w);
+      }
       const ul = document.createElement("ul");
       ul.className = "busca-web-lista";
       for (const r of data.resultados || []) {

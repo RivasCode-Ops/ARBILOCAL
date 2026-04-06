@@ -103,15 +103,23 @@ def _serper_search(q: str, limit: int, key: str) -> list[dict[str, str]]:
     url = "https://google.serper.dev/search"
     n = min(max(1, limit), 20)
     with httpx.Client(timeout=25.0) as client:
-        r = client.post(
-            url,
-            headers={
-                "X-API-KEY": key,
-                "Content-Type": "application/json",
-            },
-            json={"q": q, "num": n},
-        )
-        r.raise_for_status()
+        try:
+            r = client.post(
+                url,
+                headers={
+                    "X-API-KEY": key,
+                    "Content-Type": "application/json",
+                },
+                json={"q": q, "num": n},
+            )
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            body = ""
+            try:
+                body = (e.response.text or "")[:500]
+            except Exception:
+                pass
+            raise RuntimeError(f"Serper HTTP {e.response.status_code}: {body}") from e
         data = r.json()
     organic = data.get("organic") if isinstance(data, dict) else None
     if not isinstance(organic, list):
@@ -188,7 +196,13 @@ def executar_busca_fornecedores(
     if sk:
         try:
             res = _serper_search(q, lim, sk)
-            return {"ok": True, "fonte": "serper", "query": q, "resultados": res}
+            out: dict[str, Any] = {"ok": True, "fonte": "serper", "query": q, "resultados": res}
+            if not res:
+                out["aviso"] = (
+                    "Serper respondeu sem resultados orgânicos. Tente um termo mais curto ou desmarque "
+                    "“Ampliar termo” no painel."
+                )
+            return out
         except Exception as e:
             err_serper = str(e)
 
@@ -218,4 +232,35 @@ def executar_busca_fornecedores(
             "(Serper), ou GOOGLE_API_KEY+GOOGLE_CSE_ID (API oficial). "
             "Para usar chave Serper em GOOGLE_API_KEY sem CSE: SERPER_USE_GOOGLE_KEY=1."
         ),
+    }
+
+
+def diagnostico_busca() -> dict[str, Any]:
+    """JSON para o painel: sem expor chaves, só booleans e caminhos."""
+    from pathlib import Path
+
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    gk = bool(os.environ.get("GOOGLE_API_KEY", "").strip())
+    cx = bool((os.environ.get("GOOGLE_CSE_ID") or os.environ.get("GOOGLE_CX") or "").strip())
+    sug: list[str] = []
+    if not busca_web_configurada():
+        if env_path.is_file():
+            sug.append("O .env existe: reinicie o terminal após editar (Ctrl+C e python dashboard_server.py).")
+            sug.append("Confira: pip install python-dotenv")
+        else:
+            sug.append("Crie o arquivo .env na raiz (copie de .env.example).")
+        if gk and not cx and not bool(os.environ.get("SERPER_USE_GOOGLE_KEY", "").strip()):
+            sug.append("Chave em GOOGLE_API_KEY sem CSE: adicione SERPER_USE_GOOGLE_KEY=1 para Serper.")
+    return {
+        "busca_web_ativa": busca_web_configurada(),
+        "env_arquivo_existe": env_path.is_file(),
+        "env_caminho": str(env_path),
+        "brave_configurado": bool(os.environ.get("BRAVE_API_KEY", "").strip()),
+        "serper_api_key_definido": bool(os.environ.get("SERPER_API_KEY", "").strip()),
+        "serper_use_google_key": os.environ.get("SERPER_USE_GOOGLE_KEY", "").strip().lower()
+        in ("1", "true", "yes", "sim", "on"),
+        "google_key_presente": gk,
+        "google_cse_presente": cx,
+        "serper_chave_resolvida": bool(_serper_key()),
+        "sugestoes": sug,
     }
