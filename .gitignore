@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+
+# Ambiente / segredos (nunca commitar chaves)
+.env
+.env.*
+*.local
+
+# Banco local
+db/*.db
+db/*.db-journal
+
+# Dados gerados / pessoais (recriados ao usar o projeto)
+reports/*
+!reports/.gitkeep
+data/produtos_salvos.json
+data/ultimo_precos.json
+data/aliexpress_costs.json
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log

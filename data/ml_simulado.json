@@ -1,0 +1,56 @@
+{
+  "site_id": "MLB",
+  "query": "produto simulado",
+  "paging": {
+    "total": 8500,
+    "offset": 0,
+    "limit": 5
+  },
+  "results": [
+    {
+      "id": "MLB111",
+      "title": "Fone Bluetooth Exemplo A",
+      "price": 89.9,
+      "currency_id": "BRL",
+      "available_quantity": 10,
+      "sold_quantity": 120,
+      "permalink": "https://produto.mercadolivre.com.br/MLB-111"
+    },
+    {
+      "id": "MLB222",
+      "title": "Fone Bluetooth Exemplo B",
+      "price": 75.0,
+      "currency_id": "BRL",
+      "available_quantity": 3,
+      "sold_quantity": 45,
+      "permalink": "https://produto.mercadolivre.com.br/MLB-222"
+    },
+    {
+      "id": "MLB333",
+      "title": "Fone Bluetooth Exemplo C",
+      "price": 99.0,
+      "currency_id": "BRL",
+      "available_quantity": 50,
+      "sold_quantity": 200,
+      "permalink": "https://produto.mercadolivre.com.br/MLB-333"
+    },
+    {
+      "id": "MLB444",
+      "title": "Fone Bluetooth Exemplo D",
+      "price": 82.5,
+      "currency_id": "BRL",
+      "available_quantity": 8,
+      "sold_quantity": 90,
+      "permalink": "https://produto.mercadolivre.com.br/MLB-444"
+    },
+    {
+      "id": "MLB555",
+      "title": "Fone Bluetooth Exemplo E",
+      "price": 71.0,
+      "currency_id": "BRL",
+      "available_quantity": 2,
+      "sold_quantity": 15,
+      "permalink": "https://produto.mercadolivre.com.br/MLB-555"
+    }
+  ]
+}

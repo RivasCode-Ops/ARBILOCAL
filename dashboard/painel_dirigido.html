@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ARBILOCAL — Painel estático (dados dirigidos)</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <h1>ARBILOCAL</h1>
+          <span>Painel estático — dados dirigidos</span>
+        </div>
+        <span class="pill ok">Sem rede / sem API</span>
+      </header>
+
+      <div class="card" style="margin-bottom: 1.25rem; border-color: var(--accent-dim)">
+        <p style="margin: 0">
+          <strong>Demonstração visual apenas.</strong> Números e tabelas abaixo são
+          <em>fixos</em> para apresentação. Não há pesquisa em marketplace, nem ML, nem
+          atualização em tempo real. Pode abrir este arquivo com duplo clique; não precisa
+          de <code>python dashboard_server.py</code>.
+        </p>
+      </div>
+
+      <div class="grid cols-3">
+        <div class="card">
+          <h2>Produtos (exemplo)</h2>
+          <div class="stat">12</div>
+          <div class="stat-caption">Valor ilustrativo — não lê JSON do projeto</div>
+        </div>
+        <div class="card">
+          <h2>Relatórios proto (exemplo)</h2>
+          <div class="stat">8</div>
+          <div class="stat-caption">Valor ilustrativo</div>
+        </div>
+        <div class="card">
+          <h2>Preços (exemplo)</h2>
+          <div class="stat" style="font-size: 1rem">77,50 · 82,00 · 95,90</div>
+          <div class="stat-caption">Digitados para o layout — não vêm de busca</div>
+        </div>
+      </div>
+
+      <div class="grid cols-2" style="margin-top: 1.25rem">
+        <div class="card">
+          <h2>Lista (exemplo)</h2>
+          <div style="overflow-x: auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Termo</th>
+                  <th>Custo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>fone bluetooth entrada</td>
+                  <td>35,00</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td>carregador usb-c</td>
+                  <td>18,50</td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td>suporte celular mesa</td>
+                  <td>12,00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Exemplo de saída “proto” (texto fixo)</h2>
+          <p class="hint" style="margin-top: 0">
+            O painel dinâmico pode calcular a partir dos números que você digita; aqui é só
+            texto estático.
+          </p>
+          <pre class="out-proto show" style="margin: 0">
+Termo: fone bluetooth entrada
+Custo: 35,00
+Preço médio: 88,50
+Mediana: 87,00
+Lucro: 52,50
+Margem: 60,34%
+Decisão: APROVAR
+Motivos: margem acima do mínimo; amostra suficiente</pre>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1.25rem">
+        <h2>Últimos relatórios (exemplo)</h2>
+        <div style="overflow-x: auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Termo</th>
+                <th>Margem</th>
+                <th>Decisão</th>
+                <th>Arquivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>fone bluetooth entrada</td>
+                <td>58,20%</td>
+                <td><span class="decisao APROVAR">APROVAR</span></td>
+                <td style="color: var(--muted); font-size: 0.8rem">proto_fone_20260115.json</td>
+              </tr>
+              <tr>
+                <td>carregador usb-c</td>
+                <td>41,00%</td>
+                <td><span class="decisao TESTAR">TESTAR</span></td>
+                <td style="color: var(--muted); font-size: 0.8rem">proto_carregador_20260114.json</td>
+              </tr>
+              <tr>
+                <td>capa silicone genérica</td>
+                <td>18,50%</td>
+                <td><span class="decisao DESCARTAR">DESCARTAR</span></td>
+                <td style="color: var(--muted); font-size: 0.8rem">proto_capa_20260112.json</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="hint" style="margin-top: 2rem">
+        Para ver <strong>seus</strong> arquivos em <code>data/</code> e <code>reports/</code> com
+        simulador local (ainda sem pesquisa online no navegador), rode
+        <code>python dashboard_server.py</code> e abra <code>http://127.0.0.1:8765/</code> (ou
+        <code>http://127.0.0.1:8765/painel_dirigido.html</code> para esta mesma página via
+        servidor).
+      </p>
+    </div>
+  </body>
+</html>

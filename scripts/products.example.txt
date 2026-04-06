@@ -1,0 +1,2 @@
+# query|custo_opcional|caminho_ml_json_opcional (caminhos relativos à raiz do projeto)
+fone bluetooth|35|data/ml_search_example.json

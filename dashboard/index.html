@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ARBILOCAL — Dashboard</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <h1>ARBILOCAL</h1>
+          <span>Mercado Livre + custo + decisão — tudo no painel</span>
+        </div>
+        <div class="topbar-extras">
+          <label class="api-key-label" for="in-api-key">Chave API</label>
+          <input
+            id="in-api-key"
+            type="password"
+            autocomplete="off"
+            placeholder="só se o servidor exigir"
+            title="Preencha se você definiu ARBILOCAL_API_KEY no servidor"
+          />
+          <span id="pill-conn" class="pill">Conectando…</span>
+        </div>
+      </header>
+
+      <div id="banner-erro" class="banner-erro" hidden></div>
+
+      <div class="grid cols-3">
+        <div class="card">
+          <h2>Produtos salvos</h2>
+          <div class="stat" id="stat-produtos">—</div>
+          <div class="stat-caption">data/produtos_salvos.json</div>
+        </div>
+        <div class="card">
+          <h2>Relatórios proto</h2>
+          <div class="stat" id="stat-reports">—</div>
+          <div class="stat-caption">pasta reports/</div>
+        </div>
+        <div class="card">
+          <h2>Cache de preços</h2>
+          <div class="stat" id="stat-precos" style="font-size: 1rem">—</div>
+          <div class="stat-caption">data/ultimo_precos.json</div>
+        </div>
+      </div>
+
+      <div class="card" id="card-busca-web" style="margin-top: 1.25rem">
+        <h2>Busca na web (fornecedores)</h2>
+        <p id="busca-web-status" class="hint" style="margin-top: 0"></p>
+        <p class="hint">
+          O servidor consulta a internet via API de busca (Brave ou Google). São só links públicos —
+          confirme preço, frete e estoque em cada site. Cotas e termos de uso são da API que você
+          configurar.
+        </p>
+        <div class="row half" style="margin-top: 1rem">
+          <div>
+            <label for="busca-q">Produto ou nicho</label>
+            <input id="busca-q" type="text" placeholder="Ex.: garrafa térmica atacado" />
+          </div>
+          <div style="align-self: end">
+            <label class="check-row" style="margin: 0">
+              <input type="checkbox" id="busca-enriquecer" checked />
+              <span>Ampliar termo (fornecedor, B2B, Brasil)</span>
+            </label>
+          </div>
+        </div>
+        <button type="button" class="primary" id="btn-busca-web">Buscar na web agora</button>
+        <p id="busca-web-err" class="err"></p>
+        <div id="busca-web-resultados" class="busca-web-resultados"></div>
+      </div>
+
+      <div class="card" id="card-run" style="margin-top: 1.25rem">
+        <h2>Análise completa (Mercado Livre)</h2>
+        <p class="hint" style="margin-top: 0">
+          Busca anúncios no MLB pelo termo, cruza com seu custo e aplica as regras de decisão. O
+          servidor precisa de acesso à internet. Se receber 403, defina
+          <code>ML_ACCESS_TOKEN</code> no ambiente onde roda o Python.
+        </p>
+        <p class="hint">
+          <strong>Canal de custo:</strong> indique se o preço de compra veio de fabricante, atacado,
+          importador, marketplace B2B, etc. Muitos fornecedores continuam listados na internet mesmo
+          sem estoque — o relatório registra o canal e um lembrete para confirmar disponibilidade.
+        </p>
+        <form id="form-run">
+          <label for="run-produto">Produto / termo de busca</label>
+          <input id="run-produto" type="text" placeholder="Ex.: fone bluetooth" required />
+
+          <div class="row half" style="margin-top: 1rem">
+            <div>
+              <label for="run-custo">Custo (R$) — opcional</label>
+              <input
+                id="run-custo"
+                type="text"
+                inputmode="decimal"
+                placeholder="vazio = data/aliexpress_costs.json ou env"
+              />
+            </div>
+            <div>
+              <label for="run-taxa">Taxa ML (fração)</label>
+              <input id="run-taxa" type="text" value="0.16" inputmode="decimal" />
+            </div>
+          </div>
+
+          <label for="run-canal" style="margin-top: 1rem">Canal / tipo de fornecedor do custo</label>
+          <select id="run-canal" class="select-dash"></select>
+
+          <label class="check-row" style="margin-top: 1rem">
+            <input type="checkbox" id="run-use-precos" />
+            <span>Usar preços digitados (sem chamar a API do Mercado Livre)</span>
+          </label>
+
+          <div id="run-precos-block" class="run-precos-block" hidden>
+            <label for="run-precos">Preços (vírgula)</label>
+            <input id="run-precos" type="text" placeholder="89,90, 99, 109" />
+            <label for="run-mltotal" style="margin-top: 0.75rem">Total de resultados MLB (opcional)</label>
+            <input id="run-mltotal" type="text" inputmode="numeric" placeholder="ex.: 500" />
+          </div>
+
+          <label class="check-row" style="margin-top: 1rem">
+            <input type="checkbox" id="run-salvar" checked />
+            <span>Gravar relatório em <code>reports/</code> (aparece na tabela abaixo)</span>
+          </label>
+
+          <button type="submit" class="primary" id="btn-run" style="margin-top: 1rem">Analisar agora</button>
+          <p id="run-err" class="err"></p>
+          <pre id="out-run" class="out-proto"></pre>
+        </form>
+      </div>
+
+      <div class="grid cols-2" style="margin-top: 1.25rem">
+        <div class="card">
+          <h2>Lista (ordenada por custo)</h2>
+          <div style="overflow-x: auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Termo</th>
+                  <th>Custo</th>
+                  <th>Canal custo</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-produtos"></tbody>
+            </table>
+          </div>
+          <p class="hint">
+            Para alterar a lista use no terminal:
+            <code style="color: var(--accent)">python main.py pl</code> ·
+            <code style="color: var(--accent)">python main.py ps --termo "..." --custo 35.5 --canal atacadista</code>
+          </p>
+        </div>
+
+        <div class="card" id="card-sim">
+          <h2>Simular proto (só os números que você digitar)</h2>
+          <form id="form-proto">
+            <label for="in-termo">Produto</label>
+            <input id="in-termo" type="text" placeholder="Ex.: fone bluetooth" required />
+            <div class="row half" style="margin-top: 1rem">
+              <div>
+                <label for="in-custo">Custo (R$)</label>
+                <input id="in-custo" type="text" inputmode="decimal" placeholder="40" required />
+              </div>
+              <div>
+                <label for="in-precos">Preços (vírgula)</label>
+                <input
+                  id="in-precos"
+                  type="text"
+                  placeholder="89,99,109"
+                  required
+                />
+              </div>
+            </div>
+            <button type="submit" class="primary" id="btn-calc">Calcular</button>
+            <p id="proto-err" class="err"></p>
+            <pre id="out-proto" class="out-proto"></pre>
+          </form>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1.25rem">
+        <h2>Últimos relatórios proto</h2>
+        <div style="overflow-x: auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Termo</th>
+                <th>Margem</th>
+                <th>Decisão</th>
+                <th>Arquivo</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-reports"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="hint" style="margin-top: 2rem">
+        O cartão <strong>Simular proto</strong> usa só preços que você digita. O cartão
+        <strong>Análise completa</strong> consulta o MLB (ou preços digitados). Painel estático de
+        apresentação: <code>dashboard/painel_dirigido.html</code>. Expor na rede:
+        <code>ARBILOCAL_HOST=0.0.0.0</code> e, em produção, <code>ARBILOCAL_API_KEY</code>.
+      </p>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+[
+  {
+    "termo": "fone bluetooth",
+    "custo": 55,
+    "preco_alerta_min": 99.0,
+    "queda_percentual_alerta": 10
+  }
+]
