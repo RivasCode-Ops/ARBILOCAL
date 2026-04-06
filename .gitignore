@@ -10,6 +10,7 @@ env/
 # Ambiente / segredos (nunca commitar chaves)
 .env
 .env.*
+!.env.example
 *.local
 
 # Banco local

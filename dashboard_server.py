@@ -37,6 +37,13 @@ DASH = ROOT / "dashboard"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(ROOT / ".env")
+except ImportError:
+    pass
+
 from core.engine_proto import gerar_resultado  # noqa: E402
 from core.run_web import run_full_analysis_json  # noqa: E402
 from data.busca_web_fornecedores import (  # noqa: E402
