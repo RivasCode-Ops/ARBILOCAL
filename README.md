@@ -28,6 +28,19 @@ docker build -t arbilocal .
 docker run -p 8765:8765 -e ML_ACCESS_TOKEN=... arbilocal
 ```
 
+## Publicar no GitHub
+
+1. Crie um repositório **vazio** em [github.com/new](https://github.com/new) (sem README se for usar este projeto como primeiro commit).
+
+2. No PC, na pasta do projeto:
+
+```bash
+git remote add origin https://github.com/SEU_USUARIO/SEU_REPO.git
+git push -u origin main
+```
+
+(Se o GitHub pedir autenticação, use **Personal Access Token** ou **GitHub CLI** `gh auth login`.)
+
 ## Licença
 
 Defina a licença no repositório conforme sua necessidade.
