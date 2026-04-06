@@ -8,7 +8,8 @@ Prioridade: 1) SearXNG (instância própria)  2) Brave  3) Serper  4) Google CSE
 
 Variáveis de ambiente:
   SEARXNG_URL            — URL base da instância (ex.: https://search.exemplo.com ou http://127.0.0.1:8080)
-  SEARXNG_API_KEY        — opcional; enviado como Authorization: Bearer …
+  SEARXNG_API_KEY        — opcional; por defeito Authorization: Bearer …
+  SEARXNG_API_KEY_HEADER — opcional; ex.: X-API-Key (valor = chave, sem Bearer)
   SEARXNG_USERNAME       — opcional; com SEARXNG_PASSWORD para HTTP Basic (proxy/nginx)
   SEARXNG_PASSWORD       — opcional
   SEARXNG_SSL_VERIFY     — 0 para desativar verificação SSL (só se necessário)
@@ -24,6 +25,7 @@ No SearXNG, ative JSON em settings.yml (search.formats incluir json), senão a A
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 from urllib.parse import urljoin
@@ -34,10 +36,14 @@ DEFAULT_SUFFIX = "fornecedor atacado distribuidor compra B2B Brasil"
 
 
 def _searxng_base_url() -> str | None:
+    """URL base sem barra final; remove /search se o utilizador colou o endpoint completo."""
     u = (os.environ.get("SEARXNG_URL") or "").strip()
     if not u:
         return None
-    return u.rstrip("/")
+    u = u.rstrip("/")
+    if u.lower().endswith("/search"):
+        u = u[: -len("/search")].rstrip("/")
+    return u
 
 
 def _serper_key() -> str | None:
@@ -86,6 +92,22 @@ def _searxng_verify_ssl() -> bool:
     return v not in ("0", "false", "no", "off")
 
 
+def _searxng_headers_auth() -> tuple[dict[str, str], tuple[str, str] | None]:
+    """Headers e tupla (user, pass) para Basic, se definidos."""
+    headers: dict[str, str] = {"Accept": "application/json"}
+    api_key = (os.environ.get("SEARXNG_API_KEY") or "").strip()
+    if api_key:
+        hdr_name = (os.environ.get("SEARXNG_API_KEY_HEADER") or "Authorization").strip()
+        if hdr_name.lower() == "authorization":
+            headers["Authorization"] = f"Bearer {api_key}"
+        else:
+            headers[hdr_name] = api_key
+    user = (os.environ.get("SEARXNG_USERNAME") or "").strip()
+    pw = (os.environ.get("SEARXNG_PASSWORD") or "").strip()
+    auth: tuple[str, str] | None = (user, pw) if (user or pw) else None
+    return headers, auth
+
+
 def _searxng_search(q: str, limit: int) -> list[dict[str, str]]:
     """
     GET {base}/search?q=...&format=json — ver documentação SearXNG Search API.
@@ -100,32 +122,40 @@ def _searxng_search(q: str, limit: int) -> list[dict[str, str]]:
     cats = (os.environ.get("SEARXNG_CATEGORIES") or "").strip()
     if cats:
         params["categories"] = cats
-    headers = {"Accept": "application/json"}
-    api_key = (os.environ.get("SEARXNG_API_KEY") or "").strip()
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    user = (os.environ.get("SEARXNG_USERNAME") or "").strip()
-    pw = (os.environ.get("SEARXNG_PASSWORD") or "").strip()
-    auth = (user, pw) if (user or pw) else None
+    headers, auth = _searxng_headers_auth()
     verify = _searxng_verify_ssl()
-    with httpx.Client(timeout=35.0, verify=verify, follow_redirects=True) as client:
-        try:
-            r = client.get(search_url, params=params, headers=headers, auth=auth)
-            r.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            body = ""
+    try:
+        with httpx.Client(timeout=35.0, verify=verify, follow_redirects=True) as client:
             try:
-                body = (e.response.text or "")[:500]
-            except Exception:
-                pass
-            hint = ""
-            if e.response.status_code == 403:
-                hint = (
-                    " (403: em muitas instâncias é preciso ativar 'json' em search.formats no settings.yml "
-                    "do SearXNG — ver docs.searxng.org/dev/search_api.html)"
-                )
-            raise RuntimeError(f"SearXNG HTTP {e.response.status_code}: {body}{hint}") from e
-        data = r.json()
+                r = client.get(search_url, params=params, headers=headers, auth=auth)
+                r.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                body = ""
+                try:
+                    body = (e.response.text or "")[:500]
+                except Exception:
+                    pass
+                hint = ""
+                if e.response.status_code == 403:
+                    hint = (
+                        " (403: ative 'json' em search.formats no settings.yml do SearXNG; "
+                        "instâncias públicas muitas vezes bloqueiam JSON — use a sua.)"
+                    )
+                raise RuntimeError(f"SearXNG HTTP {e.response.status_code}: {body}{hint}") from e
+            ct = (r.headers.get("content-type") or "").lower()
+            try:
+                data = r.json()
+            except json.JSONDecodeError:
+                snippet = (r.text or "")[:400].replace("\n", " ")
+                raise RuntimeError(
+                    f"SearXNG não devolveu JSON (Content-Type: {ct or '?'}). "
+                    f"Confirme GET {search_url}?q=teste&format=json no browser. Trecho: {snippet!r}"
+                ) from None
+    except httpx.RequestError as e:
+        raise RuntimeError(
+            f"SearXNG inacessível ({type(e).__name__}: {e}). "
+            f"URL usada: {search_url}. Rede, firewall, URL errada ou SEARXNG_SSL_VERIFY=0 se certificado inválido."
+        ) from e
     raw = data.get("results") if isinstance(data, dict) else None
     if not isinstance(raw, list):
         raw = []
@@ -350,11 +380,17 @@ def diagnostico_busca() -> dict[str, Any]:
             sug.append(
                 "Instância SearXNG própria: defina SEARXNG_URL (URL base) e ative format=json no settings.yml."
             )
+    sx_base = _searxng_base_url()
+    sx_exemplo = None
+    if sx_base:
+        sx_exemplo = urljoin(sx_base + "/", "search") + "?q=teste&format=json"
     return {
         "busca_web_ativa": busca_web_configurada(),
         "env_arquivo_existe": env_path.is_file(),
         "env_caminho": str(env_path),
-        "searxng_url_definido": bool(_searxng_base_url()),
+        "searxng_url_definido": bool(sx_base),
+        "searxng_url_base": sx_base,
+        "searxng_teste_no_browser": sx_exemplo,
         "brave_configurado": bool(os.environ.get("BRAVE_API_KEY", "").strip()),
         "serper_api_key_definido": bool(os.environ.get("SERPER_API_KEY", "").strip()),
         "serper_use_google_key": os.environ.get("SERPER_USE_GOOGLE_KEY", "").strip().lower()
