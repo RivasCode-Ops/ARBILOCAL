@@ -405,11 +405,17 @@ function mostrarErroConexao(motivo) {
     (motivo ? "<small>Detalhe: " + escapeHtml(motivo) + "</small>" : "");
 }
 
-loadState().catch((x) => {
-  const msg = x && x.message ? x.message : String(x);
-  if (msg === "Failed to fetch" || msg.includes("NetworkError") || msg.includes("fetch")) {
-    mostrarErroConexao("rede / servidor desligado");
-  } else {
-    mostrarErroConexao(msg);
-  }
-});
+if (window.location.protocol === "file:") {
+  mostrarErroConexao(
+    "Você abriu o HTML pelo Explorador (file://). A API só existe em http://127.0.0.1:8765/"
+  );
+} else {
+  loadState().catch((x) => {
+    const msg = x && x.message ? x.message : String(x);
+    if (msg === "Failed to fetch" || msg.includes("NetworkError") || msg.includes("fetch")) {
+      mostrarErroConexao("rede / servidor desligado");
+    } else {
+      mostrarErroConexao(msg);
+    }
+  });
+}

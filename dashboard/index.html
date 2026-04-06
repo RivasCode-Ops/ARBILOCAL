@@ -56,6 +56,41 @@
           <a href="/api/diagnostico-busca" target="_blank" rel="noopener">Abrir diagnóstico (JSON)</a>
           — mostra se o .env foi carregado, sem revelar chaves.
         </p>
+        <details class="details-busca">
+          <summary>Como ativar a busca (precisa de uma chave no arquivo .env)</summary>
+          <ol class="lista-busca-setup">
+            <li>
+              Na raiz do projeto, crie o arquivo <code>.env</code> a partir do modelo:
+              <code>copy .env.example .env</code> (CMD) ou
+              <code>Copy-Item .env.example .env</code> (PowerShell).
+            </li>
+            <li>
+              Edite <code>.env</code> e preencha <strong>uma</strong> opção:
+              <ul>
+                <li>
+                  <strong>Serper</strong> — conta em
+                  <a href="https://serper.dev" target="_blank" rel="noopener">serper.dev</a>, depois
+                  <code>SERPER_API_KEY=sua_chave</code>
+                </li>
+                <li>
+                  <strong>Brave</strong> —
+                  <a href="https://api.search.brave.com" target="_blank" rel="noopener">Brave Search API</a>:
+                  <code>BRAVE_API_KEY=sua_chave</code>
+                </li>
+                <li>
+                  <strong>Google CSE</strong> — motor programável:
+                  <code>GOOGLE_API_KEY</code> e <code>GOOGLE_CSE_ID</code> (os dois).
+                  Se só tiver chave Serper no lugar de <code>GOOGLE_API_KEY</code>, use
+                  <code>SERPER_USE_GOOGLE_KEY=1</code> e deixe <code>GOOGLE_CSE_ID</code> vazio.
+                </li>
+              </ul>
+            </li>
+            <li>
+              Salve o arquivo, pare o servidor (<kbd>Ctrl+C</kbd>) e rode de novo
+              <code>python dashboard_server.py</code> — o Python só lê o <code>.env</code> ao iniciar.
+            </li>
+          </ol>
+        </details>
         <div class="row half" style="margin-top: 1rem">
           <div>
             <label for="busca-q">Produto ou nicho</label>
