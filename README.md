@@ -25,6 +25,38 @@ Análise de revenda (Mercado Livre + custo + regras), CLI `main.py`, dashboard l
 
 O servidor carrega automaticamente o arquivo **`.env`** ao iniciar (não commite o `.env`).
 
+### Colocar o ARBILOCAL na internet (online)
+
+O **código** do painel já está no [GitHub](https://github.com/RivasCode-Ops/ARBILOCAL); para **rodar na web** você precisa de um **servidor (VPS, nuvem ou PC acessível)** com Python ou Docker e as **mesmas variáveis** do buscador, definidas no **ambiente** do processo (ou `.env` no servidor).
+
+1. **API do buscador** (obrigatório para o card *Busca na web* funcionar):
+   - `BRAVE_API_KEY` **ou** `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`  
+   - Crie as chaves nos sites oficiais ([Brave Search API](https://api.search.brave.com/), [Google Cloud](https://console.cloud.google.com/) + [Programmable Search](https://programmablesearchengine.google.com/)).
+
+2. **Aceitar conexões externas** ao painel:
+   - `ARBILOCAL_HOST=0.0.0.0`
+   - `ARBILOCAL_PORT=8765` (ou a porta que o provedor exigir)
+
+3. **Segurança em produção:** defina `ARBILOCAL_API_KEY` e use a mesma chave no campo **“Chave API”** do dashboard (senão qualquer um pode chamar suas APIs).
+
+4. **HTTPS:** em produção, coloque **Nginx**, **Caddy** ou o proxy do provedor na frente (porta 443) e encaminhe para `127.0.0.1:8765`. Se o site for outro domínio, configure `ARBILOCAL_CORS_ORIGIN` conforme a documentação do `dashboard_server.py`.
+
+5. **Mercado Livre** no painel: `ML_ACCESS_TOKEN` no ambiente do servidor, se a API do ML bloquear.
+
+Exemplo **Docker** na nuvem (substitua as chaves):
+
+```bash
+docker build -t arbilocal .
+docker run -d -p 8765:8765 \
+  -e ARBILOCAL_HOST=0.0.0.0 \
+  -e BRAVE_API_KEY=sua_chave_brave \
+  -e ARBILOCAL_API_KEY=uma_senha_forte \
+  -e ML_ACCESS_TOKEN=opcional_mercado_livre \
+  --name arbilocal arbilocal
+```
+
+Depois acesse `http://SEU_IP:8765` ou o domínio que apontar para o servidor.
+
 ## Dashboard
 
 ```bash
@@ -37,7 +69,11 @@ Abra no navegador: `http://127.0.0.1:8765/`
 
 ```bash
 docker build -t arbilocal .
-docker run -p 8765:8765 -e ML_ACCESS_TOKEN=... arbilocal
+docker run -p 8765:8765 \
+  -e ARBILOCAL_HOST=0.0.0.0 \
+  -e BRAVE_API_KEY=sua_chave \
+  -e ARBILOCAL_API_KEY=opcional_protecao \
+  arbilocal
 ```
 
 ## Publicar no GitHub
