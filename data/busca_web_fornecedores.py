@@ -4,12 +4,13 @@ Busca na web orientada a fornecedores (resultados genéricos da internet).
 A consulta roda **no servidor** (chaves nunca vão ao navegador). É necessário
 configurar ao menos uma API de busca — respeite cotas e termos de uso.
 
-Prioridade: 1) Brave Search API  2) Google Programmable Search (Custom Search JSON).
+Prioridade: 1) Brave  2) Serper (google.serper.dev)  3) Google Custom Search JSON (CSE).
 
 Variáveis de ambiente:
   BRAVE_API_KEY          — https://api.search.brave.com/
-  GOOGLE_API_KEY         — Custom Search JSON API
-  GOOGLE_CSE_ID ou GOOGLE_CX — ID do mecanismo de busca programável (cx)
+  SERPER_API_KEY         — https://serper.dev/ — POST em google.serper.dev/search, header X-API-KEY
+  SERPER_USE_GOOGLE_KEY  — se "1", usa GOOGLE_API_KEY como chave Serper (quando não há GOOGLE_CSE_ID)
+  GOOGLE_API_KEY + GOOGLE_CSE_ID — API oficial Custom Search (não é Serper)
   ARBILOCAL_BUSCA_FORNECEDOR_SUFFIX — sufixo opcional na query quando enriquecer=1
 """
 
@@ -23,8 +24,29 @@ import httpx
 DEFAULT_SUFFIX = "fornecedor atacado distribuidor compra B2B Brasil"
 
 
+def _serper_key() -> str | None:
+    s = os.environ.get("SERPER_API_KEY", "").strip()
+    if s:
+        return s
+    use_gk = os.environ.get("SERPER_USE_GOOGLE_KEY", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "sim",
+        "on",
+    )
+    cx = (os.environ.get("GOOGLE_CSE_ID") or os.environ.get("GOOGLE_CX") or "").strip()
+    if use_gk and not cx:
+        gk = os.environ.get("GOOGLE_API_KEY", "").strip()
+        if gk:
+            return gk
+    return None
+
+
 def busca_web_configurada() -> bool:
     if os.environ.get("BRAVE_API_KEY", "").strip():
+        return True
+    if _serper_key():
         return True
     gk = os.environ.get("GOOGLE_API_KEY", "").strip()
     cx = (os.environ.get("GOOGLE_CSE_ID") or os.environ.get("GOOGLE_CX") or "").strip()
@@ -71,6 +93,38 @@ def _brave_search(q: str, limit: int, key: str) -> list[dict[str, str]]:
                 "titulo": str(it.get("title") or "")[:500],
                 "url": str(it.get("url") or "")[:2000],
                 "trecho": str(desc or "")[:900],
+            }
+        )
+    return out
+
+
+def _serper_search(q: str, limit: int, key: str) -> list[dict[str, str]]:
+    """Serper: POST https://google.serper.dev/search — header X-API-KEY."""
+    url = "https://google.serper.dev/search"
+    n = min(max(1, limit), 20)
+    with httpx.Client(timeout=25.0) as client:
+        r = client.post(
+            url,
+            headers={
+                "X-API-KEY": key,
+                "Content-Type": "application/json",
+            },
+            json={"q": q, "num": n},
+        )
+        r.raise_for_status()
+        data = r.json()
+    organic = data.get("organic") if isinstance(data, dict) else None
+    if not isinstance(organic, list):
+        organic = []
+    out: list[dict[str, str]] = []
+    for it in organic[:n]:
+        if not isinstance(it, dict):
+            continue
+        out.append(
+            {
+                "titulo": str(it.get("title") or "")[:500],
+                "url": str(it.get("link") or "")[:2000],
+                "trecho": str(it.get("snippet") or "")[:900],
             }
         )
     return out
@@ -129,6 +183,15 @@ def executar_busca_fornecedores(
         except Exception as e:
             err_brave = str(e)
 
+    sk = _serper_key()
+    err_serper: str | None = None
+    if sk:
+        try:
+            res = _serper_search(q, lim, sk)
+            return {"ok": True, "fonte": "serper", "query": q, "resultados": res}
+        except Exception as e:
+            err_serper = str(e)
+
     gk = os.environ.get("GOOGLE_API_KEY", "").strip()
     cx = (os.environ.get("GOOGLE_CSE_ID") or os.environ.get("GOOGLE_CX") or "").strip()
     if gk and cx:
@@ -137,19 +200,22 @@ def executar_busca_fornecedores(
             return {"ok": True, "fonte": "google_cse", "query": q, "resultados": res}
         except Exception as e:
             msg = f"Google CSE: {e}"
-            if err_brave:
-                msg = f"Brave: {err_brave}; {msg}"
+            parts = [p for p in (err_brave, err_serper) if p]
+            if parts:
+                msg = "; ".join(parts) + "; " + msg
             return {"ok": False, "erro": msg}
 
-    if err_brave:
+    parts_err = [p for p in (err_brave, err_serper) if p]
+    if parts_err:
         return {
             "ok": False,
-            "erro": f"Brave Search falhou: {err_brave}. Configure GOOGLE_API_KEY+GOOGLE_CSE_ID como fallback.",
+            "erro": "Falha na busca: " + "; ".join(parts_err),
         }
     return {
         "ok": False,
         "erro": (
-            "Busca web não configurada no servidor. Defina BRAVE_API_KEY "
-            "(recomendado) ou GOOGLE_API_KEY + GOOGLE_CSE_ID (Custom Search JSON)."
+            "Busca web não configurada. Defina BRAVE_API_KEY, ou SERPER_API_KEY "
+            "(Serper), ou GOOGLE_API_KEY+GOOGLE_CSE_ID (API oficial). "
+            "Para usar chave Serper em GOOGLE_API_KEY sem CSE: SERPER_USE_GOOGLE_KEY=1."
         ),
     }
