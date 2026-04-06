@@ -4,24 +4,40 @@ Busca na web orientada a fornecedores (resultados genéricos da internet).
 A consulta roda **no servidor** (chaves nunca vão ao navegador). É necessário
 configurar ao menos uma API de busca — respeite cotas e termos de uso.
 
-Prioridade: 1) Brave  2) Serper (google.serper.dev)  3) Google Custom Search JSON (CSE).
+Prioridade: 1) SearXNG (instância própria)  2) Brave  3) Serper  4) Google CSE.
 
 Variáveis de ambiente:
+  SEARXNG_URL            — URL base da instância (ex.: https://search.exemplo.com ou http://127.0.0.1:8080)
+  SEARXNG_API_KEY        — opcional; enviado como Authorization: Bearer …
+  SEARXNG_USERNAME       — opcional; com SEARXNG_PASSWORD para HTTP Basic (proxy/nginx)
+  SEARXNG_PASSWORD       — opcional
+  SEARXNG_SSL_VERIFY     — 0 para desativar verificação SSL (só se necessário)
+  SEARXNG_CATEGORIES     — opcional; ex.: general (vírgula = várias)
   BRAVE_API_KEY          — https://api.search.brave.com/
   SERPER_API_KEY         — https://serper.dev/ — POST em google.serper.dev/search, header X-API-KEY
   SERPER_USE_GOOGLE_KEY  — se "1", usa GOOGLE_API_KEY como chave Serper (quando não há GOOGLE_CSE_ID)
   GOOGLE_API_KEY + GOOGLE_CSE_ID — API oficial Custom Search (não é Serper)
   ARBILOCAL_BUSCA_FORNECEDOR_SUFFIX — sufixo opcional na query quando enriquecer=1
+
+No SearXNG, ative JSON em settings.yml (search.formats incluir json), senão a API devolve 403.
 """
 
 from __future__ import annotations
 
 import os
 from typing import Any
+from urllib.parse import urljoin
 
 import httpx
 
 DEFAULT_SUFFIX = "fornecedor atacado distribuidor compra B2B Brasil"
+
+
+def _searxng_base_url() -> str | None:
+    u = (os.environ.get("SEARXNG_URL") or "").strip()
+    if not u:
+        return None
+    return u.rstrip("/")
 
 
 def _serper_key() -> str | None:
@@ -44,6 +60,8 @@ def _serper_key() -> str | None:
 
 
 def busca_web_configurada() -> bool:
+    if _searxng_base_url():
+        return True
     if os.environ.get("BRAVE_API_KEY", "").strip():
         return True
     if _serper_key():
@@ -61,6 +79,69 @@ def _montar_query(termo: str, enriquecer: bool) -> str:
         return t
     suf = os.environ.get("ARBILOCAL_BUSCA_FORNECEDOR_SUFFIX", DEFAULT_SUFFIX).strip()
     return f"{t} {suf}" if suf else t
+
+
+def _searxng_verify_ssl() -> bool:
+    v = (os.environ.get("SEARXNG_SSL_VERIFY") or "1").strip().lower()
+    return v not in ("0", "false", "no", "off")
+
+
+def _searxng_search(q: str, limit: int) -> list[dict[str, str]]:
+    """
+    GET {base}/search?q=...&format=json — ver documentação SearXNG Search API.
+    Resultados: lista com title, url, content (snippet).
+    """
+    base = _searxng_base_url()
+    if not base:
+        raise RuntimeError("SearXNG: SEARXNG_URL não definido")
+    n = min(max(1, limit), 20)
+    search_url = urljoin(base + "/", "search")
+    params: dict[str, str] = {"q": q, "format": "json"}
+    cats = (os.environ.get("SEARXNG_CATEGORIES") or "").strip()
+    if cats:
+        params["categories"] = cats
+    headers = {"Accept": "application/json"}
+    api_key = (os.environ.get("SEARXNG_API_KEY") or "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    user = (os.environ.get("SEARXNG_USERNAME") or "").strip()
+    pw = (os.environ.get("SEARXNG_PASSWORD") or "").strip()
+    auth = (user, pw) if (user or pw) else None
+    verify = _searxng_verify_ssl()
+    with httpx.Client(timeout=35.0, verify=verify, follow_redirects=True) as client:
+        try:
+            r = client.get(search_url, params=params, headers=headers, auth=auth)
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            body = ""
+            try:
+                body = (e.response.text or "")[:500]
+            except Exception:
+                pass
+            hint = ""
+            if e.response.status_code == 403:
+                hint = (
+                    " (403: em muitas instâncias é preciso ativar 'json' em search.formats no settings.yml "
+                    "do SearXNG — ver docs.searxng.org/dev/search_api.html)"
+                )
+            raise RuntimeError(f"SearXNG HTTP {e.response.status_code}: {body}{hint}") from e
+        data = r.json()
+    raw = data.get("results") if isinstance(data, dict) else None
+    if not isinstance(raw, list):
+        raw = []
+    out: list[dict[str, str]] = []
+    for it in raw[:n]:
+        if not isinstance(it, dict):
+            continue
+        trecho = it.get("content") or it.get("snippet") or ""
+        out.append(
+            {
+                "titulo": str(it.get("title") or "")[:500],
+                "url": str(it.get("url") or "")[:2000],
+                "trecho": str(trecho)[:900],
+            }
+        )
+    return out
 
 
 def _brave_search(q: str, limit: int, key: str) -> list[dict[str, str]]:
@@ -182,6 +263,20 @@ def executar_busca_fornecedores(
 
     lim = min(max(1, int(limit)), 20)
 
+    err_searxng: str | None = None
+    if _searxng_base_url():
+        try:
+            res = _searxng_search(q, lim)
+            out_sx: dict[str, Any] = {"ok": True, "fonte": "searxng", "query": q, "resultados": res}
+            if not res:
+                out_sx["aviso"] = (
+                    "SearXNG não devolveu resultados. Tente outro termo ou desmarque “Ampliar termo”. "
+                    "Confira engines/categorias na sua instância."
+                )
+            return out_sx
+        except Exception as e:
+            err_searxng = str(e)
+
     brave = os.environ.get("BRAVE_API_KEY", "").strip()
     err_brave: str | None = None
     if brave:
@@ -214,12 +309,12 @@ def executar_busca_fornecedores(
             return {"ok": True, "fonte": "google_cse", "query": q, "resultados": res}
         except Exception as e:
             msg = f"Google CSE: {e}"
-            parts = [p for p in (err_brave, err_serper) if p]
+            parts = [p for p in (err_searxng, err_brave, err_serper) if p]
             if parts:
                 msg = "; ".join(parts) + "; " + msg
             return {"ok": False, "erro": msg}
 
-    parts_err = [p for p in (err_brave, err_serper) if p]
+    parts_err = [p for p in (err_searxng, err_brave, err_serper) if p]
     if parts_err:
         return {
             "ok": False,
@@ -228,9 +323,9 @@ def executar_busca_fornecedores(
     return {
         "ok": False,
         "erro": (
-            "Busca web não configurada. Defina BRAVE_API_KEY, ou SERPER_API_KEY "
-            "(Serper), ou GOOGLE_API_KEY+GOOGLE_CSE_ID (API oficial). "
-            "Para usar chave Serper em GOOGLE_API_KEY sem CSE: SERPER_USE_GOOGLE_KEY=1."
+            "Busca web não configurada. Defina SEARXNG_URL (instância SearXNG), ou BRAVE_API_KEY, "
+            "ou SERPER_API_KEY (Serper), ou GOOGLE_API_KEY+GOOGLE_CSE_ID (API oficial). "
+            "Para Serper em GOOGLE_API_KEY sem CSE: SERPER_USE_GOOGLE_KEY=1."
         ),
     }
 
@@ -251,10 +346,15 @@ def diagnostico_busca() -> dict[str, Any]:
             sug.append("Crie o arquivo .env na raiz (copie de .env.example).")
         if gk and not cx and not bool(os.environ.get("SERPER_USE_GOOGLE_KEY", "").strip()):
             sug.append("Chave em GOOGLE_API_KEY sem CSE: adicione SERPER_USE_GOOGLE_KEY=1 para Serper.")
+        if not _searxng_base_url():
+            sug.append(
+                "Instância SearXNG própria: defina SEARXNG_URL (URL base) e ative format=json no settings.yml."
+            )
     return {
         "busca_web_ativa": busca_web_configurada(),
         "env_arquivo_existe": env_path.is_file(),
         "env_caminho": str(env_path),
+        "searxng_url_definido": bool(_searxng_base_url()),
         "brave_configurado": bool(os.environ.get("BRAVE_API_KEY", "").strip()),
         "serper_api_key_definido": bool(os.environ.get("SERPER_API_KEY", "").strip()),
         "serper_use_google_key": os.environ.get("SERPER_USE_GOOGLE_KEY", "").strip().lower()

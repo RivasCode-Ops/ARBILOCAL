@@ -35,8 +35,10 @@ def main() -> int:
         print("Status: OK — pelo menos uma fonte está configurada.\n")
     else:
         print("Status: NÃO configurado.\n")
-        print("Veja .env.example: Brave, Serper ou Google CSE oficial.\n")
+        print("Veja .env.example: SearXNG, Brave, Serper ou Google CSE oficial.\n")
 
+    sx = bool(os.environ.get("SEARXNG_URL", "").strip())
+    print(f"  SEARXNG_URL:          {'sim' if sx else 'não'}")
     print(f"  BRAVE_API_KEY:        {'sim' if br else 'não'}")
     print(f"  SERPER_API_KEY:       {'sim' if sr else 'não'}")
     print(f"  Serper via GOOGLE_KEY: {'sim' if sgk and not cx else 'não'} (SERPER_USE_GOOGLE_KEY + GOOGLE_API_KEY sem CSE)")

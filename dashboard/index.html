@@ -50,7 +50,7 @@
         <h2>Busca na web (fornecedores)</h2>
         <p id="busca-web-status" class="hint" style="margin-top: 0"></p>
         <p class="hint">
-          O servidor consulta a internet via API de busca (Brave ou Google). São só links públicos —
+          O servidor consulta a internet via API de busca (SearXNG próprio, Brave, Serper ou Google). São só links públicos —
           confirme preço, frete e estoque em cada site. Cotas e termos de uso são da API que você
           configurar.
           <a href="/api/diagnostico-busca" target="_blank" rel="noopener">Abrir diagnóstico (JSON)</a>
@@ -67,6 +67,11 @@
             <li>
               Edite <code>.env</code> e preencha <strong>uma</strong> opção:
               <ul>
+                <li>
+                  <strong>SearXNG</strong> (recomendado se já tens instância) — URL base no
+                  <code>SEARXNG_URL</code> (ex.: <code>https://meu-searx.exemplo.com</code>). No teu
+                  SearXNG, ativa o formato <code>json</code> em <code>search.formats</code>.
+                </li>
                 <li>
                   <strong>Serper</strong> — conta em
                   <a href="https://serper.dev" target="_blank" rel="noopener">serper.dev</a>, depois

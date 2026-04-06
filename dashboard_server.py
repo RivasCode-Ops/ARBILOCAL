@@ -12,6 +12,7 @@ Variáveis de ambiente (opcional):
   ARBILOCAL_RATE_LIMIT_RUN máximo de POST /api/run-analysis por IP a cada 60s (padrão 30)
   ARBILOCAL_SAVE_REPORTS  1 (padrão) grava report_*.json em reports/; 0 desliga
   ML_ACCESS_TOKEN         token Mercado Livre (evita 403 em algumas redes)
+  SEARXNG_URL             busca fornecedores via instância SearXNG (GET /search?format=json)
   BRAVE_API_KEY           busca na web (fornecedores) via Brave Search API
   GOOGLE_API_KEY + GOOGLE_CSE_ID  fallback: Google Programmable Search (cx)
   ARBILOCAL_RATE_LIMIT_BUSCA  máx. GET /api/busca-fornecedores por IP / hora (padrão 40)
@@ -544,7 +545,7 @@ def main() -> None:
     print(f"ARBILOCAL dashboard: http://{HOST}:{PORT}/")
     print("APIs: GET /api/state  GET /api/health  GET /api/busca-fornecedores  POST /api/calc-proto  POST /api/run-analysis")
     if busca_web_configurada():
-        print("Busca web fornecedores: ativa (Brave e/ou Google CSE no ambiente).")
+        print("Busca web fornecedores: ativa (SearXNG e/ou Brave/Serper/Google CSE no ambiente).")
     else:
         print("Busca web fornecedores: defina BRAVE_API_KEY ou GOOGLE_API_KEY+GOOGLE_CSE_ID para ativar.")
     if HOST == "0.0.0.0":

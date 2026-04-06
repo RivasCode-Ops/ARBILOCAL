@@ -134,11 +134,12 @@ async function loadState() {
   const stBusca = $("#busca-web-status");
   if (stBusca) {
     if (st.busca_web_ativa) {
-      stBusca.textContent = "Busca online ativa no servidor (Brave e/ou Google CSE).";
+      stBusca.textContent =
+        "Busca online ativa no servidor (SearXNG e/ou Brave, Serper ou Google CSE, conforme o .env).";
       stBusca.style.color = "var(--good)";
     } else {
       stBusca.textContent =
-        "Busca web desligada: defina BRAVE_API_KEY ou GOOGLE_API_KEY + GOOGLE_CSE_ID no ambiente do Python.";
+        "Busca web desligada: defina SEARXNG_URL (SearXNG), ou BRAVE_API_KEY, ou Serper/Google no .env do servidor.";
       stBusca.style.color = "var(--warn)";
     }
   }
