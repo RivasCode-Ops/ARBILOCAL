@@ -363,7 +363,9 @@ if (btnBuscaWeb) {
       }
       out.appendChild(ul);
     } catch (x) {
-      errEl.textContent = x.message || String(x);
+      errEl.textContent =
+        (x.message || String(x)) +
+        " Dica: após editar o .env, feche e abra de novo o python dashboard_server.py.";
     } finally {
       $("#card-busca-web").classList.remove("loading");
     }

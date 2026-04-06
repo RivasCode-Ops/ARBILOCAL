@@ -355,8 +355,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             )
 
         if path == "/api/busca-fornecedores":
-            if not _api_key_ok(self):
-                return _json_response(self, {"ok": False, "erro": "API key inválida ou ausente."}, 401)
+            # Não exige ARBILOCAL_API_KEY: o painel usa GET mesmo host; rate limit + chave Serper no servidor bastam.
             ip = self.client_address[0]
             if not _rate_busca_allow(ip):
                 return _json_response(
