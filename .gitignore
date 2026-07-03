@@ -33,3 +33,11 @@ Desktop.ini
 
 # Logs
 *.log
+node_modules/
+.next/
+dist/
+build/
+*.pyc
+.DS_Store
+tsconfig.tsbuildinfo
+.vercel/
